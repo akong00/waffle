@@ -18,13 +18,13 @@ export default function MainScreen({ gistId, gistToken, username }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const loadData = useCallback(async () => {
+    const loadData = useCallback(async (forcePosted = false) => {
         try {
             setError('');
             const data = await fetchGist(gistId, gistToken);
             setGistData(data);
 
-            const posted = hasUserPosted(data, weekKey, username);
+            const posted = forcePosted || hasUserPosted(data, weekKey, username);
             setUserHasPosted(posted);
 
             if (posted) {
@@ -46,9 +46,13 @@ export default function MainScreen({ gistId, gistToken, username }) {
         cleanupOldPosts(gistId, gistToken, isWithinTwoWeeks).catch(() => { });
     }, [loadData, gistId, gistToken]);
 
-    const handlePostCreated = () => {
+    const handlePostCreated = async () => {
+        // Immediately hide the post form so the user can't double-post
+        setUserHasPosted(true);
         setLoading(true);
-        loadData();
+        // Give GitHub API a moment to propagate the write
+        await new Promise(r => setTimeout(r, 1500));
+        await loadData(true); // forcePosted=true prevents resetting the flag
     };
 
     const handleLogout = () => {
