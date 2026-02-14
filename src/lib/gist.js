@@ -64,11 +64,27 @@ export function parsePostsFromGist(gistData, weekKey) {
             if (post.type === 'voice') {
                 const chunkPrefix = filename.replace('.json', '');
                 post._chunks = [];
+                let allChunksFound = true;
+
                 for (let i = 0; i < post.chunks; i++) {
                     const chunkFile = `${chunkPrefix}_chunk${i}.txt`;
                     if (files[chunkFile]) {
-                        post._chunks.push(files[chunkFile].content);
+                        // GitHub Gist API can truncate content if it's large or if many files exist
+                        post._chunks.push({
+                            content: files[chunkFile].content,
+                            truncated: files[chunkFile].truncated,
+                            raw_url: files[chunkFile].raw_url,
+                            size: files[chunkFile].size
+                        });
+                    } else {
+                        allChunksFound = false;
+                        break;
                     }
+                }
+
+                // Only add the post if all chunks are found
+                if (!allChunksFound || post._chunks.length !== post.chunks) {
+                    continue;
                 }
             }
 

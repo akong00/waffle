@@ -102,14 +102,16 @@ export default function VoiceRecorder({ gistId, gistToken, weekKey, username, on
         setError('');
 
         try {
-            // Convert blob to Base64
-            const buffer = await audioBlob.arrayBuffer();
-            const bytes = new Uint8Array(buffer);
-            let binary = '';
-            for (let i = 0; i < bytes.length; i++) {
-                binary += String.fromCharCode(bytes[i]);
-            }
-            const base64 = btoa(binary);
+            // Convert blob to Base64 (robust method)
+            const base64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const base64String = reader.result.split(',')[1];
+                    resolve(base64String);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(audioBlob);
+            });
             const mimeType = audioBlob.type;
 
             await createVoicePost(gistId, gistToken, weekKey, username, base64, mimeType);

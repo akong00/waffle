@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 
 export default function PostFeed({ posts, locked }) {
     // Group posts by author
@@ -68,24 +68,147 @@ function PostCard({ post, locked }) {
     return null;
 }
 
-function VoicePostCard({ post, time, locked }) {
-    const audioUrl = useMemo(() => {
-        if (locked || !post._chunks || post._chunks.length === 0) return null;
 
-        try {
-            // Reassemble chunks
-            const fullBase64 = post._chunks.join('');
-            const binary = atob(fullBase64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-                bytes[i] = binary.charCodeAt(i);
-            }
-            const blob = new Blob([bytes], { type: post.mimeType || 'audio/webm' });
-            return URL.createObjectURL(blob);
-        } catch {
-            return null;
+function VoicePostCard({ post, time, locked }) {
+    const [audioUrl, setAudioUrl] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isError, setIsError] = useState(false);
+
+    // Custom Player State
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const [playbackRate, setPlaybackRate] = useState(1);
+    const audioRef = useRef(null);
+
+    useEffect(() => {
+        if (locked || !post._chunks || post._chunks.length === 0) {
+            setAudioUrl(null);
+            return;
         }
+
+        let isMounted = true;
+
+        async function assembleAudio() {
+            setIsLoading(true);
+            setIsError(false);
+            try {
+                // 1. Fetch any truncated chunks and decode them individually
+                const decodedChunks = await Promise.all(
+                    post._chunks.map(async (chunk) => {
+                        let b64 = chunk.content;
+                        if (chunk.truncated || !b64) {
+                            const res = await fetch(chunk.raw_url);
+                            if (!res.ok) throw new Error('Failed to fetch raw chunk');
+                            b64 = await res.text();
+                        }
+
+                        // Decode individual chunk from Base64 to Uint8Array
+                        const binary = atob(b64.trim());
+                        const bytes = new Uint8Array(binary.length);
+                        for (let i = 0; i < binary.length; i++) {
+                            bytes[i] = binary.charCodeAt(i);
+                        }
+                        return bytes;
+                    })
+                );
+
+                if (!isMounted) return;
+
+                // 2. Create Blob from decoded chunks
+                const blob = new Blob(decodedChunks, { type: post.mimeType || 'audio/webm' });
+                const url = URL.createObjectURL(blob);
+                setAudioUrl(url);
+            } catch (err) {
+                console.error('Audio assembly failed:', err);
+                if (isMounted) setIsError(true);
+            } finally {
+                if (isMounted) setIsLoading(false);
+            }
+        }
+
+        assembleAudio();
+
+        return () => {
+            isMounted = false;
+            // Note: We don't revoke URL here to avoid glitchy re-renders 
+            // but in a production app we'd want to manage this carefully
+        };
     }, [post._chunks, post.mimeType, locked]);
+
+    const togglePlay = () => {
+        if (audioRef.current) {
+            if (isPlaying) {
+                audioRef.current.pause();
+            } else {
+                audioRef.current.play();
+            }
+            // setIsPlaying(!isPlaying); // State will be updated by onPlay/onPause events
+        }
+    };
+
+    const handleTimeUpdate = () => {
+        if (audioRef.current) {
+            setCurrentTime(audioRef.current.currentTime);
+            // Constant check for duration if it's not yet settled
+            if (duration === 0 || duration === Infinity) {
+                const aud = audioRef.current;
+                if (aud.duration !== Infinity && !isNaN(aud.duration) && aud.duration > 0) {
+                    setDuration(aud.duration);
+                }
+            }
+        }
+    };
+
+    const handleLoadedMetadata = (e) => {
+        const audio = e.target;
+        // Fix for WebM blobs missing duration
+        if (audio.duration === Infinity) {
+            audio.currentTime = 1e101;
+            audio.ontimeupdate = function () {
+                this.ontimeupdate = () => { };
+                this.currentTime = 0;
+                if (this.duration !== Infinity && !isNaN(this.duration)) {
+                    setDuration(this.duration);
+                }
+            };
+        } else {
+            setDuration(audio.duration);
+        }
+    };
+
+    const handleDurationChange = (e) => {
+        const aud = e.target;
+        if (aud.duration !== Infinity && !isNaN(aud.duration) && aud.duration > 0) {
+            setDuration(aud.duration);
+        }
+    };
+
+    const handleSeek = (e) => {
+        const time = parseFloat(e.target.value);
+        if (audioRef.current) {
+            audioRef.current.currentTime = time;
+            setCurrentTime(time);
+        }
+    };
+
+    const handleSpeedChange = (rate) => {
+        setPlaybackRate(rate);
+        if (audioRef.current) {
+            audioRef.current.playbackRate = rate;
+            // Some browsers reset playbackRate on pause/play, 
+            // but the element event handlers above should handle state
+        }
+    };
+
+    const formatTime = (time) => {
+        if (isNaN(time) || time === Infinity || time <= 0) {
+            return '--:--';
+        }
+        const mins = Math.floor(time / 60);
+        const secs = Math.floor(time % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
 
     return (
         <div className={`post-card voice-post ${locked ? 'locked' : ''}`}>
@@ -93,10 +216,59 @@ function VoicePostCard({ post, time, locked }) {
                 <div className="voice-placeholder blurred">
                     <span>🎙️ Audio recording hidden</span>
                 </div>
-            ) : audioUrl ? (
-                <audio controls src={audioUrl} className="post-audio" />
-            ) : (
+            ) : isLoading ? (
+                <div className="voice-placeholder">
+                    <span className="loading-spinner small"></span>
+                    <span>Reassembling audio...</span>
+                </div>
+            ) : isError || !audioUrl ? (
                 <p className="post-error">Audio unavailable</p>
+            ) : (
+                <div className="custom-audio-player">
+                    <audio
+                        ref={audioRef}
+                        src={audioUrl}
+                        onTimeUpdate={handleTimeUpdate}
+                        onLoadedMetadata={handleLoadedMetadata}
+                        onDurationChange={handleDurationChange}
+                        onEnded={() => setIsPlaying(false)}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                    />
+
+                    <div className="player-main-controls">
+                        <button className="play-toggle" onClick={togglePlay}>
+                            {isPlaying ? '⏸' : '▶'}
+                        </button>
+
+                        <div className="progress-container">
+                            <input
+                                type="range"
+                                className="progress-bar"
+                                min="0"
+                                max={duration || 0}
+                                value={currentTime}
+                                onChange={handleSeek}
+                            />
+                            <div className="time-display">
+                                <span>{formatTime(currentTime)}</span>
+                                <span>{formatTime(duration)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="playback-controls">
+                        {[1, 1.5, 2, 2.5, 3].map((rate) => (
+                            <button
+                                key={rate}
+                                className={`speed-btn ${playbackRate === rate ? 'active' : ''}`}
+                                onClick={() => handleSpeedChange(rate)}
+                            >
+                                {rate}x
+                            </button>
+                        ))}
+                    </div>
+                </div>
             )}
             <span className="post-time">{time}</span>
         </div>
