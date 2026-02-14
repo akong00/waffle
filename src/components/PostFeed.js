@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 
-export default function PostFeed({ posts }) {
+export default function PostFeed({ posts, locked }) {
     // Group posts by author
     const grouped = useMemo(() => {
         const map = {};
@@ -33,7 +33,7 @@ export default function PostFeed({ posts }) {
                     </div>
                     <div className="author-posts">
                         {authorPosts.map((post) => (
-                            <PostCard key={post._filename} post={post} />
+                            <PostCard key={post._filename} post={post} locked={locked} />
                         ))}
                     </div>
                 </div>
@@ -42,7 +42,7 @@ export default function PostFeed({ posts }) {
     );
 }
 
-function PostCard({ post }) {
+function PostCard({ post, locked }) {
     const time = new Date(post.timestamp).toLocaleString(undefined, {
         weekday: 'short',
         month: 'short',
@@ -52,24 +52,25 @@ function PostCard({ post }) {
     });
 
     if (post.type === 'text') {
+        const content = locked ? 'This is a blurred message that contains enough text to look like a real post but is completely unreadable.' : post.content;
         return (
-            <div className="post-card text-post">
-                <p className="post-content">{post.content}</p>
+            <div className={`post-card text-post ${locked ? 'locked' : ''}`}>
+                <p className={`post-content ${locked ? 'blurred' : ''}`}>{content}</p>
                 <span className="post-time">{time}</span>
             </div>
         );
     }
 
     if (post.type === 'voice') {
-        return <VoicePostCard post={post} time={time} />;
+        return <VoicePostCard post={post} time={time} locked={locked} />;
     }
 
     return null;
 }
 
-function VoicePostCard({ post, time }) {
+function VoicePostCard({ post, time, locked }) {
     const audioUrl = useMemo(() => {
-        if (!post._chunks || post._chunks.length === 0) return null;
+        if (locked || !post._chunks || post._chunks.length === 0) return null;
 
         try {
             // Reassemble chunks
@@ -84,11 +85,15 @@ function VoicePostCard({ post, time }) {
         } catch {
             return null;
         }
-    }, [post._chunks, post.mimeType]);
+    }, [post._chunks, post.mimeType, locked]);
 
     return (
-        <div className="post-card voice-post">
-            {audioUrl ? (
+        <div className={`post-card voice-post ${locked ? 'locked' : ''}`}>
+            {locked ? (
+                <div className="voice-placeholder blurred">
+                    <span>🎙️ Audio recording hidden</span>
+                </div>
+            ) : audioUrl ? (
                 <audio controls src={audioUrl} className="post-audio" />
             ) : (
                 <p className="post-error">Audio unavailable</p>

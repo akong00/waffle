@@ -26,7 +26,7 @@ export default function PasswordScreen({ onSubmit }) {
             <div className="auth-card">
                 <div className="auth-logo">
                     <span className="logo-icon">🧇</span>
-                    <h1>Waffle</h1>
+                    <h1>Waffle Wednesday</h1>
                     <p className="auth-subtitle">Weekly check-in with your crew</p>
                 </div>
 

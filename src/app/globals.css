@@ -31,7 +31,8 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   height: 100%;
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -41,7 +42,7 @@ html, body {
 }
 
 body {
-  background: 
+  background:
     radial-gradient(ellipse at 20% 0%, rgba(255, 170, 80, 0.06) 0%, transparent 60%),
     radial-gradient(ellipse at 80% 100%, rgba(100, 120, 255, 0.04) 0%, transparent 60%),
     var(--bg-primary);
@@ -92,7 +93,9 @@ body {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ========================================
@@ -125,6 +128,7 @@ body {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -564,8 +568,17 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.85); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
 }
 
 .recording-label {
@@ -607,8 +620,15 @@ body {
 }
 
 @keyframes vizBounce {
-  from { height: 8px; opacity: 0.4; }
-  to { height: 32px; opacity: 1; }
+  from {
+    height: 8px;
+    opacity: 0.4;
+  }
+
+  to {
+    height: 32px;
+    opacity: 1;
+  }
 }
 
 .stop-btn {
@@ -818,5 +838,57 @@ body {
   .author-posts {
     padding-left: 0;
     margin-top: 4px;
+  }
+}
+
+/* ========================================
+   Blur & Locked States
+   ======================================== */
+
+.blurred {
+  filter: blur(12px);
+  user-select: none;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.post-card.locked {
+  background: rgba(255, 255, 255, 0.02);
+  border-style: dashed;
+  opacity: 0.8;
+}
+
+.voice-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.feed-locked-hint {
+  text-align: center;
+  margin-top: 20px;
+  padding: 12px;
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  animation: pulseSubtle 2s infinite;
+}
+
+@keyframes pulseSubtle {
+
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+
+  50% {
+    opacity: 1;
   }
 }

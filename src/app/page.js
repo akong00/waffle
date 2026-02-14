@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { decryptData } from '@/lib/crypto';
-import { getStoredCredentials, storePassword, storeUsername } from '@/lib/auth';
+import { getStoredCredentials, storeUsername } from '@/lib/auth';
 import { ENCRYPTED_GIST_URL } from '@/lib/config';
 import PasswordScreen from '@/components/PasswordScreen';
 import UsernameScreen from '@/components/UsernameScreen';
@@ -30,18 +30,8 @@ export default function Home() {
   useEffect(() => {
     async function init() {
       const creds = getStoredCredentials();
-
-      if (creds.password) {
-        const success = await tryDecrypt(creds.password);
-        if (success) {
-          if (creds.username) {
-            setUsername(creds.username);
-            setAppState('main');
-          } else {
-            setAppState('username');
-          }
-          return;
-        }
+      if (creds.username) {
+        setUsername(creds.username);
       }
       setAppState('password');
     }
@@ -52,7 +42,6 @@ export default function Home() {
   const handlePasswordSubmit = async (pwd) => {
     const success = await tryDecrypt(pwd);
     if (success) {
-      storePassword(pwd);
       const creds = getStoredCredentials();
       if (creds.username) {
         setUsername(creds.username);

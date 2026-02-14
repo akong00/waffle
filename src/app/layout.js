@@ -4,7 +4,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'], weight: ['300', '400', '500', '600', '700'] });
 
 export const metadata = {
-  title: 'Waffle — Weekly Check-In',
+  title: 'Waffle Wednesday',
   description: 'Share a voice recording or text with your group each week.',
 };
 

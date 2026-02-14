@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchGist, hasUserPosted, parsePostsFromGist, cleanupOldPosts } from '@/lib/gist';
 import { getCurrentWeekKey, getWeekLabel, isWithinTwoWeeks } from '@/lib/week';
-import { clearCredentials } from '@/lib/auth';
 import TextPostForm from '@/components/TextPostForm';
 import VoiceRecorder from '@/components/VoiceRecorder';
 import PostFeed from '@/components/PostFeed';
@@ -27,10 +26,9 @@ export default function MainScreen({ gistId, gistToken, username }) {
             const posted = forcePosted || hasUserPosted(data, weekKey, username);
             setUserHasPosted(posted);
 
-            if (posted) {
-                const weekPosts = parsePostsFromGist(data, weekKey);
-                setPosts(weekPosts);
-            }
+            // Always parse posts for the week to show names
+            const weekPosts = parsePostsFromGist(data, weekKey);
+            setPosts(weekPosts);
         } catch (err) {
             setError('Failed to load posts. Please check your connection.');
             console.error(err);
@@ -55,23 +53,17 @@ export default function MainScreen({ gistId, gistToken, username }) {
         await loadData(true); // forcePosted=true prevents resetting the flag
     };
 
-    const handleLogout = () => {
-        clearCredentials();
-        window.location.reload();
-    };
+
 
     return (
         <div className="main-screen">
             <header className="main-header">
                 <div className="header-left">
                     <span className="logo-icon small">🧇</span>
-                    <h1>Waffle</h1>
+                    <h1>Waffle Wednesday</h1>
                 </div>
                 <div className="header-right">
                     <span className="user-badge">{username}</span>
-                    <button onClick={handleLogout} className="btn-ghost" title="Sign out">
-                        ✕
-                    </button>
                 </div>
             </header>
 
@@ -138,19 +130,16 @@ export default function MainScreen({ gistId, gistToken, username }) {
                         </div>
                     )}
 
-                    {userHasPosted && (
-                        <div className="feed-section">
-                            <h2 className="feed-title">This Week&apos;s Posts</h2>
-                            <PostFeed posts={posts} />
-                        </div>
-                    )}
+                    <div className="feed-section">
+                        <h2 className="feed-title">This Week&apos;s Posts</h2>
+                        <PostFeed posts={posts} locked={!userHasPosted} />
 
-                    {!userHasPosted && (
-                        <div className="feed-locked">
-                            <div className="lock-icon">🔒</div>
-                            <p>Post something to unlock this week&apos;s feed</p>
-                        </div>
-                    )}
+                        {!userHasPosted && (
+                            <div className="feed-locked-hint">
+                                <p>🔒 Post something to unlock content</p>
+                            </div>
+                        )}
+                    </div>
                 </>
             )}
         </div>
