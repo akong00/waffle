@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Waffle — Encrypt Gist URL</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0a0f;
+      color: #f0f0f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      max-width: 520px;
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 40px;
+    }
+    h1 { font-size: 22px; margin-bottom: 8px; }
+    p.sub { color: #8888a0; font-size: 14px; margin-bottom: 24px; }
+    label {
+      display: block;
+      font-size: 12px;
+      color: #8888a0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      margin-top: 16px;
+    }
+    input, textarea {
+      width: 100%;
+      background: #12121a;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 14px;
+      color: #f0f0f5;
+      font-family: inherit;
+      outline: none;
+    }
+    input:focus, textarea:focus {
+      border-color: rgba(255,170,80,0.5);
+    }
+    textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size: 12px; }
+    button {
+      margin-top: 20px;
+      width: 100%;
+      background: linear-gradient(135deg, #ffaa50, #ff8833);
+      color: #0a0a0f;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { opacity: 0.9; }
+    .result {
+      margin-top: 20px;
+      padding: 16px;
+      background: rgba(68,204,136,0.08);
+      border: 1px solid rgba(68,204,136,0.2);
+      border-radius: 10px;
+      display: none;
+    }
+    .result.show { display: block; }
+    .result h3 { font-size: 14px; color: #44cc88; margin-bottom: 8px; }
+    .result textarea { background: #0a0a0f; }
+    .result .note { font-size: 12px; color: #8888a0; margin-top: 8px; }
+    .test-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.08); }
+    .test-section h3 { font-size: 14px; margin-bottom: 12px; }
+    .test-result {
+      margin-top: 8px;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      display: none;
+    }
+    .test-result.success { display: block; background: rgba(68,204,136,0.08); color: #44cc88; }
+    .test-result.fail { display: block; background: rgba(255,85,102,0.08); color: #ff5566; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🧇 Waffle Encryption Tool</h1>
+    <p class="sub">Generate the encrypted Gist URL to paste into your app config.</p>
+
+    <label for="gistId">Gist ID</label>
+    <input id="gistId" type="text" placeholder="e.g. abc123def456...">
+
+    <label for="pat">GitHub Personal Access Token</label>
+    <input id="pat" type="text" placeholder="ghp_xxxxxxxxxxxx...">
+
+    <label for="password">Shared Password</label>
+    <input id="password" type="password" placeholder="The password all users will enter">
+
+    <button onclick="doEncrypt()">Encrypt</button>
+
+    <div id="result" class="result">
+      <h3>✅ Encrypted String</h3>
+      <textarea id="output" readonly></textarea>
+      <p class="note">Copy this entire string and paste it into <code>src/lib/config.js</code> as the value of <code>ENCRYPTED_GIST_URL</code>.</p>
+    </div>
+
+    <div class="test-section">
+      <h3>🔑 Test Decryption</h3>
+      <label for="testPassword">Password to test</label>
+      <input id="testPassword" type="password" placeholder="Enter password to verify">
+      <button onclick="doTest()" style="margin-top:10px;">Test Decrypt</button>
+      <div id="testResult" class="test-result"></div>
+    </div>
+  </div>
+
+  <script>
+    const SALT = new TextEncoder().encode('waffle-app-salt-2026');
+    const ITERATIONS = 100000;
+
+    async function deriveKey(password) {
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']
+      );
+      return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt: SALT, iterations: ITERATIONS, hash: 'SHA-256' },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+      );
+    }
+
+    async function doEncrypt() {
+      const gistId = document.getElementById('gistId').value.trim();
+      const pat = document.getElementById('pat').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      if (!gistId || !pat || !password) {
+        alert('Please fill in all fields.');
+        return;
+      }
+
+      const plaintext = `${gistId}|${pat}`;
+      const key = await deriveKey(password);
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const encoded = new TextEncoder().encode(plaintext);
+      const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+
+      const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+      combined.set(iv, 0);
+      combined.set(new Uint8Array(ciphertext), iv.length);
+
+      const base64 = btoa(String.fromCharCode(...combined));
+      document.getElementById('output').value = base64;
+      document.getElementById('result').classList.add('show');
+    }
+
+    async function doTest() {
+      const encrypted = document.getElementById('output').value;
+      const password = document.getElementById('testPassword').value.trim();
+      const el = document.getElementById('testResult');
+
+      if (!encrypted || !password) {
+        alert('Encrypt first, then enter a password to test.');
+        return;
+      }
+
+      try {
+        const combined = Uint8Array.from(atob(encrypted), c => c.charCodeAt(0));
+        const iv = combined.slice(0, 12);
+        const ciphertext = combined.slice(12);
+        const key = await deriveKey(password);
+        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+        const text = new TextDecoder().decode(decrypted);
+        el.textContent = `✅ Decrypted: ${text}`;
+        el.className = 'test-result success';
+      } catch {
+        el.textContent = '❌ Decryption failed — wrong password.';
+        el.className = 'test-result fail';
+      }
+    }
+  </script>
+</body>
+</html>
