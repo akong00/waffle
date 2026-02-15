@@ -25,6 +25,25 @@
   --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+[data-theme='light'] {
+  --bg-primary: #f8f9fa;
+  --bg-secondary: #ffffff;
+  --bg-card: rgba(0, 0, 0, 0.03);
+  --bg-card-hover: rgba(0, 0, 0, 0.05);
+  --bg-glass: rgba(255, 255, 255, 0.7);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-focus: rgba(255, 170, 80, 0.6);
+  --text-primary: #1a1a2e;
+  --text-secondary: #55556a;
+  --text-muted: #8888a0;
+  --accent: #ff8800;
+  --accent-soft: rgba(255, 136, 0, 0.1);
+  --accent-glow: rgba(255, 136, 0, 0.2);
+  --danger: #ee4455;
+  --success: #22bb66;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -1047,6 +1066,28 @@ body {
   margin-bottom: 16px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
+}
+
+/* ... existing styles ... */
+
+.theme-toggle {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.theme-toggle:hover {
+  background: var(--bg-card-hover);
+  transform: scale(1.1);
 }
 
 .week-title {

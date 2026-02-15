@@ -6,6 +6,7 @@ import { getCurrentWeekKey, getWeekLabel, isWithinTwoWeeks } from '@/lib/week';
 import TextPostForm from '@/components/TextPostForm';
 import VoiceRecorder from '@/components/VoiceRecorder';
 import PostFeed from '@/components/PostFeed';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function MainScreen({ gistId, gistToken, username }) {
     const [weekKey] = useState(getCurrentWeekKey());
@@ -77,6 +78,7 @@ export default function MainScreen({ gistId, gistToken, username }) {
                     <h1>Waffle Wednesday</h1>
                 </div>
                 <div className="header-right">
+                    <ThemeToggle />
                     <span className="user-badge">{username}</span>
                 </div>
             </header>
