@@ -13,6 +13,7 @@ export default function MainScreen({ gistId, gistToken, username }) {
     const [gistData, setGistData] = useState(null);
     const [userHasPosted, setUserHasPosted] = useState(false);
     const [posts, setPosts] = useState([]);
+    const [participatedWeeks, setParticipatedWeeks] = useState(new Set());
     const [postMode, setPostMode] = useState('text'); // text or voice
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -23,12 +24,26 @@ export default function MainScreen({ gistId, gistToken, username }) {
             const data = await fetchGist(gistId, gistToken);
             setGistData(data);
 
-            const posted = forcePosted || hasUserPosted(data, weekKey, username);
-            setUserHasPosted(posted);
+            // 1. Fetch ALL posts (no weekKey filter)
+            const allPosts = parsePostsFromGist(data);
+            setPosts(allPosts);
 
-            // Always parse posts for the week to show names
-            const weekPosts = parsePostsFromGist(data, weekKey);
-            setPosts(weekPosts);
+            // 2. Identify which weeks the user has posted in
+            const userWeeks = new Set(
+                allPosts
+                    .filter(p => p.author === username)
+                    .map(p => p.weekKey)
+            );
+            setParticipatedWeeks(userWeeks);
+
+            // 3. Update current week status
+            const postedThisWeek = userWeeks.has(weekKey) || forcePosted;
+            setUserHasPosted(postedThisWeek);
+
+            // 4. Determine participation
+            // We'll pass the set of unlocked weeks to the feed
+            // (Store this in state or derive it)
+
         } catch (err) {
             setError('Failed to load posts. Please check your connection.');
             console.error(err);
@@ -39,8 +54,7 @@ export default function MainScreen({ gistId, gistToken, username }) {
 
     useEffect(() => {
         loadData();
-
-        // Cleanup old posts silently
+        // Cleanup old posts still works based on date arithmetic in week.js
         cleanupOldPosts(gistId, gistToken, isWithinTwoWeeks).catch(() => { });
     }, [loadData, gistId, gistToken]);
 
@@ -131,8 +145,13 @@ export default function MainScreen({ gistId, gistToken, username }) {
                     )}
 
                     <div className="feed-section">
-                        <h2 className="feed-title">This Week&apos;s Posts</h2>
-                        <PostFeed posts={posts} locked={!userHasPosted} />
+                        <h2 className="feed-title">Feed</h2>
+                        <PostFeed
+                            posts={posts}
+                            username={username}
+                            participatedWeeks={participatedWeeks}
+                            currentWeekKey={weekKey}
+                        />
 
                         {!userHasPosted && (
                             <div className="feed-locked-hint">

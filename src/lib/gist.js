@@ -53,8 +53,9 @@ export function parsePostsFromGist(gistData, weekKey) {
     const files = gistData.files || {};
 
     for (const [filename, fileData] of Object.entries(files)) {
-        // Only parse JSON files that match our naming convention
-        if (!filename.endsWith('.json') || !filename.startsWith(weekKey)) continue;
+        // Only parse JSON files. If weekKey is provided, filter by it.
+        if (!filename.endsWith('.json')) continue;
+        if (weekKey && !filename.startsWith(weekKey)) continue;
 
         try {
             const post = JSON.parse(fileData.content);

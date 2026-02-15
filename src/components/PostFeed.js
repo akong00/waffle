@@ -1,45 +1,85 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { isPostedOnTime } from '@/lib/week';
+import { isPostedOnTime, getWeekLabel } from '@/lib/week';
 
-export default function PostFeed({ posts, locked }) {
-    // ... (rest of PostFeed logic remains the same)
-    // Group posts by author
-    const grouped = useMemo(() => {
-        const map = {};
+export default function PostFeed({ posts, participatedWeeks, currentWeekKey }) {
+    // Group posts by weekKey -> author
+    const groups = useMemo(() => {
+        const weekMap = {};
+
+        // Bucketing by week
         for (const post of posts) {
-            if (!map[post.author]) map[post.author] = [];
-            map[post.author].push(post);
+            // weekKey should be present, fallback to unknown if needed
+            const wk = post.weekKey || 'unknown';
+            if (!weekMap[wk]) weekMap[wk] = [];
+            weekMap[wk].push(post);
         }
-        return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]));
-    }, [posts]);
+
+        // Processing each week bucket
+        return Object.entries(weekMap)
+            .sort((a, b) => b[0].localeCompare(a[0])) // Sort weeks descending (newest first)
+            .map(([weekKey, weekPosts]) => {
+                // Determine lock status for this week
+                const isLocked = !participatedWeeks.has(weekKey);
+
+                // Group by author within this week
+                const authorMap = {};
+                for (const post of weekPosts) {
+                    if (!authorMap[post.author]) authorMap[post.author] = [];
+                    authorMap[post.author].push(post);
+                }
+
+                const authors = Object.entries(authorMap).sort((a, b) => a[0].localeCompare(b[0]));
+
+                return {
+                    weekKey,
+                    isLocked,
+                    authors
+                };
+            });
+    }, [posts, participatedWeeks]);
 
     if (posts.length === 0) {
         return (
             <div className="feed-empty">
-                <p>No posts yet this week. Be the first!</p>
+                <p>No posts yet. Be the first!</p>
             </div>
         );
     }
 
     return (
         <div className="post-feed">
-            {grouped.map(([author, authorPosts]) => (
-                <div key={author} className="author-group">
-                    <div className="author-header">
-                        <div className="author-avatar">
-                            {author.charAt(0).toUpperCase()}
+            {groups.map(({ weekKey, isLocked, authors }) => {
+                const label = weekKey === currentWeekKey ? 'This Week' : getWeekLabel(weekKey);
+
+                return (
+                    <div key={weekKey} className="week-group">
+                        <div className="week-header-row">
+                            <h3 className="week-title">{label}</h3>
+                            {isLocked && <span className="locked-badge">🔒 Locked</span>}
                         </div>
-                        <span className="author-name">{author}</span>
+
+                        <div className={`week-content ${isLocked ? 'locked-week' : ''}`}>
+                            {authors.map(([author, authorPosts]) => (
+                                <div key={author} className="author-group">
+                                    <div className="author-header">
+                                        <div className="author-avatar">
+                                            {author.charAt(0).toUpperCase()}
+                                        </div>
+                                        <span className="author-name">{author}</span>
+                                    </div>
+                                    <div className="author-posts">
+                                        {authorPosts.map((post) => (
+                                            <PostCard key={post._filename} post={post} locked={isLocked} />
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    <div className="author-posts">
-                        {authorPosts.map((post) => (
-                            <PostCard key={post._filename} post={post} locked={locked} />
-                        ))}
-                    </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 }

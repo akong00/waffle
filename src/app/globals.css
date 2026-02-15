@@ -1030,3 +1030,45 @@ body {
     box-shadow: 0 0 0 0 rgba(255, 71, 87, 0);
   }
 }
+
+/* ========================================
+   Feed Grouping
+   ======================================== */
+
+.week-group {
+  margin-bottom: 32px;
+}
+
+.week-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.week-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+.locked-badge {
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.week-content.locked-week {
+  opacity: 0.6;
+}
