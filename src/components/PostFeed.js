@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { isPostedOnTime } from '@/lib/week';
 
 export default function PostFeed({ posts, locked }) {
+    // ... (rest of PostFeed logic remains the same)
     // Group posts by author
     const grouped = useMemo(() => {
         const map = {};
@@ -51,25 +53,34 @@ function PostCard({ post, locked }) {
         minute: '2-digit',
     });
 
+    // Check if posted on time (Wed 12:01 AM - Fri 11:59 PM CST)
+    // We pass the weekKey from the post if available, or it might be inferred
+    // Ideally post object has weekKey. If not, we might need a fallback or just check timestamp
+    // The current week.js isPostedOnTime takes (timestamp, weekKey) but mostly relies on timestamp logic relative to week days
+    const isLate = !isPostedOnTime(post.timestamp, post.weekKey || '');
+
     if (post.type === 'text') {
         const content = locked ? 'This is a blurred message that contains enough text to look like a real post but is completely unreadable.' : post.content;
         return (
             <div className={`post-card text-post ${locked ? 'locked' : ''}`}>
                 <p className={`post-content ${locked ? 'blurred' : ''}`}>{content}</p>
-                <span className="post-time">{time}</span>
+                <div className="post-footer">
+                    <span className="post-time">{time}</span>
+                    {isLate && <span className="late-badge" title="Posted outside the Wed-Fri window">🔔 Late</span>}
+                </div>
             </div>
         );
     }
 
     if (post.type === 'voice') {
-        return <VoicePostCard post={post} time={time} locked={locked} />;
+        return <VoicePostCard post={post} time={time} locked={locked} isLate={isLate} />;
     }
 
     return null;
 }
 
 
-function VoicePostCard({ post, time, locked }) {
+function VoicePostCard({ post, time, locked, isLate }) {
     const [audioUrl, setAudioUrl] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isError, setIsError] = useState(false);
@@ -237,6 +248,7 @@ function VoicePostCard({ post, time, locked }) {
                     />
 
                     <div className="player-main-controls">
+                        {isLate && <span className="late-badge" title="Posted outside the Wed-Fri window">🔔 Late</span>}
                         <button className="play-toggle" onClick={togglePlay}>
                             {isPlaying ? '⏸' : '▶'}
                         </button>
